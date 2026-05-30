@@ -1,0 +1,7 @@
+APScheduler==3.11.2
+asgiref==3.11.1
+Django==6.0.5
+pyasn1==0.6.3
+pysnmp==7.1.27
+sqlparse==0.5.5
+tzlocal==5.3.1

@@ -1,0 +1,37 @@
+{% extends "impressoras/base.html" %}
+{% block title %}Leitura Manual — GerPrint{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div>
+    <a href="{% url 'impressora_detail' impressora.pk %}" class="text-muted text-decoration-none"><i class="bi bi-chevron-left"></i> {{ impressora.nome }}</a>
+    <h5 class="mb-0 fw-bold mt-1">Registrar Leitura Manual</h5>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card p-4">
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label">Data e Hora</label>
+          {{ form.lido_em }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Valor do Contador (total de páginas)</label>
+          {{ form.valor_contador }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Nível de Toner % <small class="text-muted">(opcional)</small></label>
+          {{ form.nivel_toner }}
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Salvar</button>
+          <a href="{% url 'impressora_detail' impressora.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

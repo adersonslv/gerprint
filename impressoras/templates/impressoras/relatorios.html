@@ -1,0 +1,242 @@
+{% extends "impressoras/base.html" %}
+{% block title %}Relatórios — GerPrint{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <h5 class="mb-0 fw-bold"><i class="bi bi-table me-2 text-primary"></i>Relatórios — {{ ano }}</h5>
+  <form method="get" class="d-flex align-items-center gap-2">
+    <select name="ano" class="form-select form-select-sm" style="width:90px" onchange="this.form.submit()">
+      {% for a in anos %}<option {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+
+<!-- Resumo KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card blue p-3">
+      <div class="text-muted small">Total de Páginas — {{ ano }}</div>
+      <div class="fs-2 fw-bold text-primary">{{ total_paginas_ano }}</div>
+      <div class="text-muted small">páginas impressas no ano</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card orange p-3">
+      <div class="text-muted small">Custo Total — {{ ano }}</div>
+      <div class="fs-2 fw-bold text-warning">R$ {{ total_custo_ano|floatformat:2 }}</div>
+      <div class="text-muted small">custo acumulado no ano</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card green p-3">
+      <div class="text-muted small">Média Mensal de Páginas</div>
+      <div class="fs-2 fw-bold text-success">
+        {% if total_paginas_ano %}{{ total_paginas_ano|divisibleby:5|yesno:"," }}
+        {% widthratio total_paginas_ano 5 1 %}{% endif %}
+      </div>
+      <div class="text-muted small">média por mês (meses ativos)</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card red p-3">
+      <div class="text-muted small">Impressoras com Dados</div>
+      <div class="fs-2 fw-bold text-danger">{{ pivot|length }}</div>
+      <div class="text-muted small">impressoras neste período</div>
+    </div>
+  </div>
+</div>
+
+<!-- Abas -->
+<ul class="nav nav-tabs mb-0" id="relTabs" role="tablist"
+    style="border-bottom:none;">
+  <li class="nav-item">
+    <button class="nav-link active fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-volume">
+      <i class="bi bi-bar-chart-fill me-1 text-primary"></i>Volume de Impressão
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-custos">
+      <i class="bi bi-cash-stack me-1 text-warning"></i>Custos Mensais
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+  <!-- ===== ABA 1: VOLUME ===== -->
+  <div class="tab-pane fade show active" id="tab-volume">
+    <div class="card" style="border-top-left-radius:0">
+      <div class="p-3 border-bottom d-flex align-items-center justify-content-between">
+        <span class="fw-semibold text-muted small">Páginas impressas por impressora × mês</span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-primary rounded-pill">{{ total_paginas_ano }} páginas / {{ ano }}</span>
+          <a href="{% url 'relatorios_csv' %}?ano={{ ano }}&tipo=volume"
+             class="btn btn-sm btn-outline-success">
+            <i class="bi bi-filetype-csv me-1"></i>Exportar CSV
+          </a>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered table-hover mb-0" style="font-size:.82rem">
+          <thead class="table-dark">
+            <tr>
+              <th style="min-width:210px">Impressora</th>
+              <th style="min-width:130px">Localização</th>
+              {% for m in meses_pt %}<th class="text-center px-1">{{ m }}</th>{% endfor %}
+              <th class="text-end pe-3">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in pivot %}
+            <tr>
+              <td>
+                <a href="{% url 'impressora_detail' row.impressora.pk %}?ano={{ ano }}"
+                   class="text-decoration-none fw-semibold">{{ row.impressora.nome|truncatechars:34 }}</a>
+              </td>
+              <td class="text-muted">{{ row.impressora.localizacao|default:"—" }}</td>
+              {% for r in row.meses %}
+              <td class="text-end px-1">
+                {% if r %}<span title="Contador: {{ r.contador_final }}">{{ r.paginas_impressas }}</span>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              {% endfor %}
+              <td class="text-end fw-bold pe-3">{{ row.total_paginas }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="15" class="text-center text-muted py-4">Sem dados para {{ ano }}.</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-secondary fw-bold">
+            <tr>
+              <td class="ps-2" colspan="2">Total Geral</td>
+              {% for t in vol_totais_mes %}
+              <td class="text-end px-1">{% if t %}{{ t }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              {% endfor %}
+              <td class="text-end pe-3">{{ total_paginas_ano }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <!-- Gráfico volume -->
+      <div class="p-3 pt-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-bar-chart me-1"></i>Volume Total por Mês — {{ ano }}</h6>
+        <canvas id="chartVolume" height="55"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ABA 2: CUSTOS ===== -->
+  <div class="tab-pane fade" id="tab-custos">
+    <div class="card" style="border-top-left-radius:0">
+      <div class="p-3 border-bottom d-flex align-items-center justify-content-between">
+        <span class="fw-semibold text-muted small">Custo financeiro por impressora × mês (R$)</span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-warning text-dark rounded-pill">R$ {{ total_custo_ano|floatformat:2 }} / {{ ano }}</span>
+          <a href="{% url 'relatorios_csv' %}?ano={{ ano }}&tipo=custos"
+             class="btn btn-sm btn-outline-success">
+            <i class="bi bi-filetype-csv me-1"></i>Exportar CSV
+          </a>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered table-hover mb-0" style="font-size:.82rem">
+          <thead class="table-dark">
+            <tr>
+              <th style="min-width:210px">Impressora</th>
+              <th style="min-width:130px">Localização</th>
+              {% for m in meses_pt %}<th class="text-center px-1">{{ m }}</th>{% endfor %}
+              <th class="text-end pe-3">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in pivot %}
+            <tr>
+              <td>
+                <a href="{% url 'impressora_detail' row.impressora.pk %}?ano={{ ano }}"
+                   class="text-decoration-none fw-semibold">{{ row.impressora.nome|truncatechars:34 }}</a>
+                <br><small class="text-muted">Custo/pág: R$ {{ row.impressora.custo_por_pagina }}</small>
+              </td>
+              <td class="text-muted">{{ row.impressora.localizacao|default:"—" }}</td>
+              {% for r in row.meses %}
+              <td class="text-end px-1">
+                {% if r %}
+                  <span title="{{ r.paginas_impressas }} págs">R$ {{ r.custo_total|floatformat:2 }}</span>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              {% endfor %}
+              <td class="text-end fw-bold pe-3">R$ {{ row.total_custo|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="15" class="text-center text-muted py-4">Sem dados para {{ ano }}.</td></tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-secondary fw-bold">
+            <tr>
+              <td class="ps-2" colspan="2">Total Geral</td>
+              {% for t in custo_totais_mes %}
+              <td class="text-end px-1">{% if t %}R$ {{ t|floatformat:2 }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              {% endfor %}
+              <td class="text-end pe-3">R$ {{ total_custo_ano|floatformat:2 }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <!-- Gráfico custos -->
+      <div class="p-3 pt-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-currency-dollar me-1"></i>Custo Total por Mês — {{ ano }}</h6>
+        <canvas id="chartCustos" height="55"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div><!-- tab-content -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const meses   = {{ meses_pt|safe }};
+const volumes = {{ vol_totais_mes|safe }};
+const custos  = {{ custo_totais_mes|safe }};
+
+new Chart(document.getElementById('chartVolume'), {
+  type: 'bar',
+  data: {
+    labels: meses,
+    datasets: [{
+      label: 'Páginas',
+      data: volumes,
+      backgroundColor: 'rgba(25,118,210,0.75)',
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+  }
+});
+
+new Chart(document.getElementById('chartCustos'), {
+  type: 'bar',
+  data: {
+    labels: meses,
+    datasets: [{
+      label: 'Custo (R$)',
+      data: custos,
+      backgroundColor: 'rgba(245,124,0,0.75)',
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { callback: v => 'R$ ' + v.toFixed(2) }
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

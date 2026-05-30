@@ -1,0 +1,187 @@
+{% extends "impressoras/base.html" %}
+{% block title %}{{ impressora.nome }} — GerPrint{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div>
+    <a href="{% url 'impressora_list' %}" class="text-muted text-decoration-none"><i class="bi bi-chevron-left"></i> Impressoras</a>
+    <h5 class="mb-0 fw-bold mt-1">{{ impressora.nome }}</h5>
+  </div>
+  <div class="d-flex gap-2">
+    <form method="get" class="d-flex align-items-center gap-2">
+      <select name="ano" class="form-select form-select-sm" style="width:90px" onchange="this.form.submit()">
+        {% for a in anos %}<option {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+      </select>
+    </form>
+    <a href="{% url 'leitura_manual' impressora.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil-square me-1"></i>Leitura Manual</a>
+    <a href="{% url 'coletar_impressora' impressora.pk %}" class="btn btn-sm btn-success"><i class="bi bi-arrow-repeat me-1"></i>Coletar SNMP</a>
+    <a href="{% url 'impressora_edit' impressora.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil me-1"></i>Editar</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- Info Card -->
+  <div class="col-md-4">
+    <div class="card p-3 h-100">
+      <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-1"></i>Informações</h6>
+      <table class="table table-sm mb-0">
+        <tr><th class="text-muted fw-normal">IP</th><td><code>{{ impressora.ip }}</code></td></tr>
+        <tr><th class="text-muted fw-normal">Localização</th><td>{{ impressora.localizacao|default:"—" }}</td></tr>
+        <tr><th class="text-muted fw-normal">Série</th><td>{{ impressora.numero_serie|default:"—" }}</td></tr>
+        <tr><th class="text-muted fw-normal">Comunidade SNMP</th><td>{{ impressora.comunidade_snmp }}</td></tr>
+        <tr><th class="text-muted fw-normal">Versão SNMP</th><td>v{{ impressora.versao_snmp }}</td></tr>
+        <tr><th class="text-muted fw-normal">OID Contador</th><td><small><code>{{ impressora.oid_contador }}</code></small></td></tr>
+        <tr><th class="text-muted fw-normal">Custo/Página</th><td>R$ {{ impressora.custo_por_pagina }}</td></tr>
+        <tr><th class="text-muted fw-normal">Status</th><td>
+          {% if impressora.ativo %}
+            <span class="badge badge-online">Ativa</span>
+          {% else %}
+            <span class="badge bg-secondary">Inativa</span>
+          {% endif %}
+        </td></tr>
+        {% with ultima=impressora.ultima_leitura %}
+        <tr><th class="text-muted fw-normal">Nível de Toner</th><td>
+          {% if ultima and ultima.nivel_toner is not None %}
+            {% with t=ultima.nivel_toner %}
+            <div class="progress mb-1" style="height:8px; max-width:120px">
+              <div class="progress-bar {% if t > 30 %}bg-success{% elif t > 10 %}bg-warning{% else %}bg-danger{% endif %}"
+                   style="width:{{ t }}%"></div>
+            </div>
+            <span class="{% if t > 30 %}text-success{% elif t > 10 %}text-warning{% else %}text-danger{% endif %} fw-semibold small">
+              {{ t }}%
+              {% if t <= 10 %}<i class="bi bi-exclamation-triangle-fill ms-1"></i> Crítico{% elif t <= 30 %}<i class="bi bi-exclamation-circle ms-1"></i> Baixo{% endif %}
+            </span>
+            {% endwith %}
+          {% else %}
+            <span class="text-muted">Sem dados</span>
+          {% endif %}
+        </td></tr>
+        {% endwith %}
+      </table>
+      {% if impressora.observacoes %}
+        <div class="mt-2 p-2 bg-light rounded small">{{ impressora.observacoes }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="col-md-8">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3"><i class="bi bi-bar-chart me-1"></i>Volume por Mês — {{ ano }}</h6>
+      <canvas id="chartPaginas" height="100"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Relatórios Mensais -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3"><i class="bi bi-table me-1"></i>Relatório Mensal — {{ ano }}</h6>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>Mês</th>
+              <th class="text-end">Contador Inicial</th>
+              <th class="text-end">Contador Final</th>
+              <th class="text-end">Páginas</th>
+              <th class="text-end">Custo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in relatorios %}
+            <tr>
+              <td>{{ r.mes }}/{{ r.ano }}</td>
+              <td class="text-end">{{ r.contador_inicial }}</td>
+              <td class="text-end">{{ r.contador_final }}</td>
+              <td class="text-end fw-semibold">{{ r.paginas_impressas }}</td>
+              <td class="text-end">R$ {{ r.custo_total|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-muted text-center">Sem relatórios para {{ ano }}.</td></tr>
+            {% endfor %}
+          </tbody>
+          {% if relatorios %}
+          <tfoot class="table-light fw-bold">
+            <tr>
+              <td>Total</td>
+              <td></td><td></td>
+              <td class="text-end">{% for r in relatorios %}{% if forloop.last %}{{ r.paginas_impressas }}{% endif %}{% endfor %}</td>
+              <td class="text-end">
+                R$ {% with total=0 %}
+                  {% for r in relatorios %}{% if forloop.last %}{{ r.custo_total|floatformat:2 }}{% endif %}{% endfor %}
+                {% endwith %}
+              </td>
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Últimas leituras SNMP -->
+<div class="card p-3">
+  <h6 class="fw-bold mb-3"><i class="bi bi-clock-history me-1"></i>Histórico de Leituras</h6>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover">
+      <thead class="table-light">
+        <tr><th>Data/Hora</th><th class="text-end">Contador</th><th class="text-end">Toner</th><th>Tipo</th><th>Erro</th></tr>
+      </thead>
+      <tbody>
+        {% for l in leituras %}
+        <tr class="{% if l.erro %}table-danger{% endif %}">
+          <td>{{ l.lido_em|date:"d/m/Y H:i:s" }}</td>
+          <td class="text-end">{{ l.valor_contador }}</td>
+          <td class="text-end">{% if l.nivel_toner is not None %}{{ l.nivel_toner }}%{% else %}—{% endif %}</td>
+          <td>{% if l.manual %}<span class="badge bg-warning text-dark">Manual</span>{% else %}<span class="badge bg-info text-dark">SNMP</span>{% endif %}</td>
+          <td><small class="text-danger">{{ l.erro }}</small></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-muted text-center">Sem leituras registradas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+new Chart(document.getElementById('chartPaginas'), {
+  type: 'bar',
+  data: {
+    labels: {{ labels|safe }},
+    datasets: [
+      {
+        label: 'Páginas',
+        data: {{ data_paginas|safe }},
+        backgroundColor: 'rgba(25,118,210,0.7)',
+        yAxisID: 'y',
+        borderRadius: 5,
+      },
+      {
+        label: 'Custo (R$)',
+        data: {{ data_custos|safe }},
+        type: 'line',
+        borderColor: '#F57C00',
+        backgroundColor: 'rgba(245,124,0,0.1)',
+        yAxisID: 'y1',
+        tension: 0.4,
+        fill: true,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    interaction: { mode: 'index', intersect: false },
+    scales: {
+      y: { position: 'left', beginAtZero: true, ticks: { precision: 0 } },
+      y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } }
+    }
+  }
+});
+</script>
+{% endblock %}

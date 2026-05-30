@@ -1,0 +1,85 @@
+{% extends "impressoras/base.html" %}
+{% block title %}Impressoras — GerPrint{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <h5 class="mb-0 fw-bold"><i class="bi bi-printer me-2 text-primary"></i>Impressoras</h5>
+  <a href="{% url 'impressora_create' %}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>Nova Impressora
+  </a>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Nome</th>
+          <th>Localização</th>
+          <th>IP</th>
+          <th>Série</th>
+          <th>SNMP</th>
+          <th>Custo/Pág</th>
+          <th>Último Contador</th>
+          <th>Toner</th>
+          <th>Status</th>
+          <th class="text-end">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for imp in impressoras %}
+        {% with ultima=imp.ultima_leitura %}
+        <tr>
+          <td class="fw-semibold">{{ imp.nome }}</td>
+          <td>{{ imp.localizacao|default:"—" }}</td>
+          <td><code>{{ imp.ip }}</code></td>
+          <td><small>{{ imp.numero_serie|default:"—" }}</small></td>
+          <td><span class="badge bg-secondary">v{{ imp.versao_snmp }}</span> <small class="text-muted">{{ imp.comunidade_snmp }}</small></td>
+          <td>R$ {{ imp.custo_por_pagina }}</td>
+          <td>
+            {% if ultima %}
+              <div>{{ ultima.valor_contador }}</div>
+              <small class="text-muted">{{ ultima.lido_em|date:"d/m/Y H:i" }}</small>
+            {% else %}
+              <span class="text-muted">Sem leitura</span>
+            {% endif %}
+          </td>
+          <td style="min-width:100px">
+            {% if ultima and ultima.nivel_toner is not None %}
+              {% with t=ultima.nivel_toner %}
+              <div class="progress mb-1" style="height:6px">
+                <div class="progress-bar {% if t > 30 %}bg-success{% elif t > 10 %}bg-warning{% else %}bg-danger{% endif %}"
+                     style="width:{{ t }}%"></div>
+              </div>
+              <small class="{% if t > 30 %}text-success{% elif t > 10 %}text-warning{% else %}text-danger{% endif %} fw-semibold">{{ t }}%</small>
+              {% endwith %}
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if not imp.ativo %}
+              <span class="badge bg-secondary">Inativa</span>
+            {% elif ultima and not ultima.erro %}
+              <span class="badge badge-online px-2 py-1 rounded-pill"><i class="bi bi-check-circle-fill me-1"></i>Online</span>
+            {% elif ultima and ultima.erro %}
+              <span class="badge badge-offline px-2 py-1 rounded-pill" title="{{ ultima.erro }}"><i class="bi bi-x-circle-fill me-1"></i>Erro</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">Sem dados</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <a href="{% url 'impressora_detail' imp.pk %}" class="btn btn-sm btn-outline-secondary" title="Ver"><i class="bi bi-eye"></i></a>
+            <a href="{% url 'impressora_edit' imp.pk %}" class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
+            <a href="{% url 'coletar_impressora' imp.pk %}" class="btn btn-sm btn-outline-success" title="Coletar SNMP"><i class="bi bi-arrow-repeat"></i></a>
+          </td>
+        </tr>
+        {% endwith %}
+        {% empty %}
+        <tr><td colspan="8" class="text-center text-muted py-4">Nenhuma impressora cadastrada.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "impressoras/base.html" %}
+{% block title %}{{ titulo }} — GerPrint{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div>
+    <a href="{% url 'impressora_list' %}" class="text-muted text-decoration-none"><i class="bi bi-chevron-left"></i> Impressoras</a>
+    <h5 class="mb-0 fw-bold mt-1">{{ titulo }}</h5>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card p-4">
+      <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label">Nome</label>
+            {{ form.nome }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">IP</label>
+            {{ form.ip }}
+            {% if form.ip.errors %}<div class="text-danger small">{{ form.ip.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Localização</label>
+            {{ form.localizacao }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Número de Série</label>
+            {{ form.numero_serie }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Comunidade SNMP</label>
+            {{ form.comunidade_snmp }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Versão SNMP</label>
+            {{ form.versao_snmp }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Custo por Página (R$)</label>
+            {{ form.custo_por_pagina }}
+          </div>
+          <div class="col-12">
+            <label class="form-label">OID Contador de Páginas</label>
+            {{ form.oid_contador }}
+          </div>
+          <div class="col-12">
+            <label class="form-label">OID Nível de Toner <small class="text-muted">(opcional)</small></label>
+            {{ form.oid_toner }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Franquia Mensal</label>
+            {{ form.franquia_mensal }}
+          </div>
+          <div class="col-md-8 d-flex align-items-end">
+            <div class="form-check ms-2">
+              {{ form.ativo }}
+              <label class="form-check-label">Ativa</label>
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Observações</label>
+            {{ form.observacoes }}
+          </div>
+        </div>
+        <div class="mt-4 d-flex gap-2">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Salvar</button>
+          <a href="{% url 'impressora_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+          {% if impressora %}
+          <a href="{% url 'impressora_delete' impressora.pk %}" class="btn btn-outline-danger ms-auto">
+            <i class="bi bi-trash me-1"></i>Excluir
+          </a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
