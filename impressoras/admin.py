@@ -2,15 +2,23 @@
 # Copyright (C) 2025  Aderson Silva <aderson.slv@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 from django.contrib import admin
-from .models import Impressora, LeituraContador, RelatorioMensal
+
+from .models import Impressora, LeituraContador, LeituraToner, RelatorioMensal, TonerConfig
+
+
+class TonerConfigInline(admin.TabularInline):
+    model = TonerConfig
+    extra = 1
+    fields = ['nome', 'cor', 'oid', 'ordem']
 
 
 @admin.register(Impressora)
 class ImpressoraAdmin(admin.ModelAdmin):
-    list_display = ['nome', 'localizacao', 'ip', 'versao_snmp', 'custo_por_pagina', 'ativo']
-    list_filter = ['ativo', 'versao_snmp']
-    search_fields = ['nome', 'ip', 'numero_serie']
+    list_display = ['nome', 'entidade', 'localizacao', 'ip', 'versao_snmp', 'custo_por_pagina', 'ativo']
+    list_filter = ['ativo', 'versao_snmp', 'entidade']
+    search_fields = ['nome', 'ip', 'numero_serie', 'entidade']
     list_editable = ['ativo']
+    inlines = [TonerConfigInline]
 
 
 @admin.register(LeituraContador)

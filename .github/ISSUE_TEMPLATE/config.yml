@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "💬 Dúvidas e discussões"
+    url: ../../discussions
+    about: "Para perguntas sobre uso, configuração e ideias use as Discussions."
+  - name: "📖 Documentação"
+    url: doc/README.md
+    about: "Consulte a documentação técnica antes de abrir uma issue."

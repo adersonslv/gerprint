@@ -1,0 +1,19 @@
+services:
+  gerprint:
+    build: .
+    # network_mode: host  ← descomente se as impressoras não responderem via bridge
+    ports:
+      - "8000:8000"
+    volumes:
+      - gerprint_data:/app/db.sqlite3
+    environment:
+      SECRET_KEY: "troque-esta-chave-em-producao-use-openssl-rand-base64-50"
+      DEBUG: "False"
+      ALLOWED_HOSTS: "*"
+      DJANGO_SUPERUSER_USERNAME: admin
+      DJANGO_SUPERUSER_EMAIL: admin@gerprint.local
+      DJANGO_SUPERUSER_PASSWORD: admin123
+    restart: unless-stopped
+
+volumes:
+  gerprint_data:

@@ -1,0 +1,68 @@
+name: "🐛 Relatório de Bug"
+description: "Encontrou algo quebrado? Descreva aqui."
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar! Preencha os campos abaixo para agilizar a correção.
+
+  - type: textarea
+    id: descricao
+    attributes:
+      label: "O que aconteceu?"
+      description: "Descreva o comportamento incorreto de forma clara e objetiva."
+      placeholder: "Ao coletar SNMP da impressora X, o sistema retorna erro Y mesmo com a impressora online."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducao
+    attributes:
+      label: "Passos para reproduzir"
+      description: "Liste os passos exatos para chegar ao erro."
+      value: |
+        1. Acesse '...'
+        2. Clique em '...'
+        3. Observe o erro
+    validations:
+      required: true
+
+  - type: textarea
+    id: esperado
+    attributes:
+      label: "Comportamento esperado"
+      description: "O que deveria ter acontecido?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: ambiente
+    attributes:
+      label: "Ambiente"
+      description: "Preencha as informações do seu ambiente."
+      value: |
+        - Instalação: [ ] Docker  [ ] Manual
+        - Python: x.xx
+        - Sistema operacional:
+        - Navegador (se aplicável):
+        - Modelo de impressora (se relacionado):
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs / mensagem de erro"
+      description: "Cole aqui o traceback ou mensagem de erro, se houver."
+      render: text
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: "Checklist"
+      options:
+        - label: "Busquei nas issues existentes e não encontrei este bug relatado."
+          required: true
+        - label: "Estou usando a versão mais recente do repositório."
+          required: true

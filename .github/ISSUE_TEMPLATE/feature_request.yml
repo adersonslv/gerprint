@@ -1,0 +1,61 @@
+name: "💡 Sugestão de Funcionalidade"
+description: "Tem uma ideia para melhorar o GerPrint? Compartilhe!"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sugestões são muito bem-vindas! Quanto mais contexto você fornecer, mais fácil avaliar e implementar.
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: "Qual problema você está tentando resolver?"
+      description: "Descreva a situação que motivou esta sugestão. Ex: 'Quando gerencio muitas impressoras, fico tendo que...'"
+      placeholder: "Toda vez que preciso comparar o consumo entre dois setores, tenho que exportar o CSV e fazer na mão..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solucao
+    attributes:
+      label: "Solução que você imagina"
+      description: "Descreva como gostaria que funcionasse. Pode ser em texto, esboço ou print de referência."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: "Alternativas consideradas"
+      description: "Há outra forma de resolver o problema que você já tentou ou descartou?"
+
+  - type: dropdown
+    id: impacto
+    attributes:
+      label: "Impacto estimado"
+      description: "Quantas pessoas/impressoras esta funcionalidade afetaria no seu caso?"
+      options:
+        - "Individual (apenas meu uso)"
+        - "Pequena rede (até 10 impressoras)"
+        - "Rede média (11–50 impressoras)"
+        - "Rede grande (50+ impressoras)"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribuicao
+    attributes:
+      label: "Você toparia implementar esta funcionalidade?"
+      options:
+        - label: "Sim, posso abrir um PR com a implementação."
+        - label: "Posso ajudar a testar, mas não a implementar."
+        - label: "Apenas sugerindo — fica a critério dos mantenedores."
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: "Checklist"
+      options:
+        - label: "Busquei nas issues existentes e não encontrei esta sugestão."
+          required: true

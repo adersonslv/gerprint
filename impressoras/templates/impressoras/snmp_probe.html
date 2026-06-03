@@ -1,0 +1,190 @@
+{% extends "impressoras/base.html" %}
+{% block title %}Diagnóstico SNMP — {{ impressora.nome }}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div>
+    <a href="{% url 'impressora_detail' impressora.pk %}" class="text-muted text-decoration-none">
+      <i class="bi bi-chevron-left"></i> {{ impressora.nome }}
+    </a>
+    <h5 class="mb-0 fw-bold mt-1"><i class="bi bi-stethoscope me-2 text-primary"></i>Diagnóstico SNMP — Contadores</h5>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- Painel esquerdo: config + teste -->
+  <div class="col-lg-5">
+    <div class="card p-4 mb-3">
+      <h6 class="fw-bold mb-3"><i class="bi bi-gear me-1"></i>Configuração</h6>
+      <table class="table table-sm mb-3">
+        <tr><th class="text-muted fw-normal">Impressora</th><td class="fw-semibold">{{ impressora.nome }}</td></tr>
+        <tr><th class="text-muted fw-normal">IP</th><td><code>{{ impressora.ip }}</code></td></tr>
+        <tr><th class="text-muted fw-normal">Comunidade</th><td><code>{{ impressora.comunidade_snmp }}</code></td></tr>
+        <tr><th class="text-muted fw-normal">Versão SNMP</th><td>v{{ impressora.versao_snmp }}</td></tr>
+        <tr>
+          <th class="text-muted fw-normal">OID(s) atual</th>
+          <td>
+            {% for linha in oid_atual.splitlines %}
+              <code class="d-block text-primary" style="font-size:.75rem">{{ linha }}</code>
+            {% endfor %}
+          </td>
+        </tr>
+      </table>
+
+      <form method="post" id="form-testar">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label fw-semibold">OID personalizado <small class="text-muted fw-normal">(opcional)</small></label>
+          <input type="text" name="oid_custom" class="form-control font-monospace"
+                 placeholder="1.3.6.1.2.1.43.10.2.1.4.1.1">
+          <div class="form-text">Deixe em branco para testar apenas os OIDs pré-definidos</div>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-play-fill me-1"></i>Testar todos os OIDs
+        </button>
+      </form>
+    </div>
+
+    {% if resultados %}
+    <div class="card p-4 border-warning">
+      <h6 class="fw-bold mb-2 text-warning"><i class="bi bi-check2-all me-1"></i>Combinar OIDs</h6>
+      <p class="small text-muted mb-3">
+        Selecione os OIDs na tabela ao lado e clique em <strong>Salvar combinação</strong>.
+        O GerPrint vai somar os valores a cada coleta.
+      </p>
+      <form method="post" id="form-combinar">
+        {% csrf_token %}
+        <div id="oids-selecionados" class="mb-3 font-monospace small text-muted">
+          Nenhum OID selecionado ainda
+        </div>
+        <button type="submit" id="btn-combinar" class="btn btn-warning w-100" disabled>
+          <i class="bi bi-layers me-1"></i>Salvar combinação (<span id="n-selecionados">0</span> OIDs)
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Painel direito: resultados -->
+  <div class="col-lg-7">
+    <div class="card p-4">
+      <h6 class="fw-bold mb-3"><i class="bi bi-table me-1"></i>Resultados</h6>
+
+      {% if resultados %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width:34px">
+                <input type="checkbox" class="form-check-input" id="check-all" title="Selecionar todos com valor">
+              </th>
+              <th>OID</th>
+              <th>Descrição</th>
+              <th class="text-end">Valor</th>
+              <th class="text-center">Usar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in resultados %}
+            <tr class="{% if r.valor is not None %}table-success bg-opacity-25{% endif %}">
+              <td>
+                {% if r.valor is not None %}
+                <input type="checkbox" class="form-check-input oid-check" value="{{ r.oid }}" {% if r.oid in oids_atuais %}checked{% endif %}>
+                {% endif %}
+              </td>
+              <td><code style="font-size:.72rem">{{ r.oid }}</code></td>
+              <td><small>{{ r.nome }}</small></td>
+              <td class="text-end">
+                {% if r.valor is not None %}
+                  <span class="fw-bold text-success">{{ r.valor }}</span>
+                {% else %}
+                  <span class="text-muted small">{{ r.erro|truncatechars:30 }}</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if r.valor is not None %}
+                <form method="post" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="aplicar_oid" value="{{ r.oid }}">
+                  <button type="submit"
+                    class="btn btn-sm {% if oids_atuais|length == 1 and r.oid == oid_atual %}btn-secondary disabled{% else %}btn-outline-primary{% endif %}"
+                    title="Usar apenas este OID">
+                    {% if oids_atuais|length == 1 and r.oid == oid_atual %}
+                      <i class="bi bi-check-circle-fill text-success"></i>
+                    {% else %}
+                      <i class="bi bi-check2-circle me-1"></i>Usar
+                    {% endif %}
+                  </button>
+                </form>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% else %}
+      <div class="text-muted text-center py-4">
+        <i class="bi bi-play-circle fs-3 d-block mb-2 text-primary"></i>
+        Clique em <strong>Testar todos os OIDs</strong> para consultar a impressora.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const checks = document.querySelectorAll('.oid-check');
+  const checkAll = document.getElementById('check-all');
+  const formCombinar = document.getElementById('form-combinar');
+  const btnCombinar = document.getElementById('btn-combinar');
+  const nSel = document.getElementById('n-selecionados');
+  const display = document.getElementById('oids-selecionados');
+
+  if (!checks.length) return;
+
+  function atualizar() {
+    const selecionados = [...checks].filter(c => c.checked).map(c => c.value);
+
+    // Remove hidden inputs antigos
+    formCombinar.querySelectorAll('input[name=combinar_oids]').forEach(e => e.remove());
+
+    selecionados.forEach(oid => {
+      const inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = 'combinar_oids';
+      inp.value = oid;
+      formCombinar.appendChild(inp);
+    });
+
+    nSel.textContent = selecionados.length;
+    btnCombinar.disabled = selecionados.length < 1;
+
+    if (selecionados.length === 0) {
+      display.textContent = 'Nenhum OID selecionado ainda';
+    } else {
+      display.innerHTML = selecionados.map(o =>
+        `<span class="d-block text-dark"><i class="bi bi-plus-circle-fill text-warning me-1"></i>${o}</span>`
+      ).join('');
+    }
+  }
+
+  checks.forEach(c => c.addEventListener('change', atualizar));
+
+  if (checkAll) {
+    checkAll.addEventListener('change', () => {
+      checks.forEach(c => { c.checked = checkAll.checked; });
+      atualizar();
+    });
+  }
+
+  atualizar();
+})();
+</script>
+{% endblock %}

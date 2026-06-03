@@ -1,0 +1,176 @@
+{% extends "impressoras/base.html" %}
+{% block title %}Escanear Rede — GerPrint{% endblock %}
+
+{% block content %}
+
+{# Overlay de carregamento #}
+<div id="loading-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;flex-direction:column;align-items:center;justify-content:center">
+  <div class="spinner-border text-light mb-3" style="width:3.5rem;height:3.5rem"></div>
+  <div class="text-white fs-5 fw-semibold">Escaneando a rede…</div>
+  <div class="text-white-50 mt-1">Aguarde, pode levar alguns segundos</div>
+</div>
+
+<div class="topbar">
+  <div>
+    <a href="{% url 'impressora_list' %}" class="text-muted text-decoration-none"><i class="bi bi-chevron-left"></i> Impressoras</a>
+    <h5 class="mb-0 fw-bold mt-1"><i class="bi bi-radar me-2 text-primary"></i>Escanear Rede</h5>
+  </div>
+</div>
+
+{# Formulário de scan #}
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card p-4">
+      <h6 class="fw-bold mb-3"><i class="bi bi-search me-1"></i>Configuração do Escaneamento</h6>
+      <form method="post" id="scan-form">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label">Rede <small class="text-muted">(notação CIDR)</small></label>
+          <input type="text" name="subnet" value="{{ subnet }}" class="form-control font-monospace"
+                 placeholder="192.168.1.0/24" required
+                 pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$">
+          <div class="form-text">Sub-redes /24 (254 hosts) são varridas em ~2 segundos</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Comunidade SNMP</label>
+          <input type="text" name="community" value="{{ community }}" class="form-control" placeholder="public">
+        </div>
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-radar me-1"></i>Escanear
+        </button>
+        {% if resultados is not None %}
+        <span class="text-muted ms-3 small">
+          <i class="bi bi-clock me-1"></i>Varredura anterior: {{ elapsed }}s
+        </span>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card p-4 h-100 bg-light">
+      <h6 class="fw-bold mb-2"><i class="bi bi-info-circle me-1 text-primary"></i>Como funciona</h6>
+      <ul class="mb-0 small text-muted ps-3">
+        <li>Envia requisições SNMP (UDP 161) para cada IP da sub-rede</li>
+        <li>Identifica impressoras pelo OID de contador de páginas e palavras-chave no modelo</li>
+        <li>Dispositivos já cadastrados são marcados automaticamente</li>
+        <li>Clique em <strong>Cadastrar</strong> para pré-preencher o formulário com o IP e nome detectados</li>
+        <li>Sub-rede padrão detectada: <code>{{ subnet_padrao }}</code></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{% if erro %}
+<div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>{{ erro }}</div>
+{% endif %}
+
+{% if resultados is not None %}
+
+{# KPIs #}
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card stat-card blue p-3 text-center">
+      <div class="text-muted small">Dispositivos SNMP</div>
+      <div class="fs-2 fw-bold text-primary">{{ total }}</div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card stat-card green p-3 text-center">
+      <div class="text-muted small">Impressoras detectadas</div>
+      <div class="fs-2 fw-bold text-success">{{ total_impressoras }}</div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card stat-card orange p-3 text-center">
+      <div class="text-muted small">Novas (não cadastradas)</div>
+      <div class="fs-2 fw-bold text-warning">{{ total_novas }}</div>
+    </div>
+  </div>
+</div>
+
+{% if not resultados %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-circle me-2"></i>Nenhum dispositivo SNMP encontrado em <strong>{{ subnet }}</strong>.
+  Verifique se a comunidade SNMP está correta e se há dispositivos na rede.
+</div>
+{% else %}
+<div class="card">
+  <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+    <span class="fw-semibold"><i class="bi bi-list-check me-1"></i>Dispositivos encontrados — {{ subnet }}</span>
+    <div class="d-flex gap-2">
+      <span class="badge bg-success rounded-pill">🖨 Impressora</span>
+      <span class="badge bg-secondary rounded-pill">📡 Outro dispositivo</span>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width:130px">IP</th>
+          <th>Nome / Modelo</th>
+          <th>Descrição</th>
+          <th>Localização</th>
+          <th class="text-end">Contador</th>
+          <th class="text-center">Status</th>
+          <th class="text-end">Ação</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in resultados %}
+        <tr class="{% if r.is_printer %}table-success bg-opacity-25{% endif %}">
+          <td><code class="fw-semibold">{{ r.ip }}</code></td>
+          <td>
+            {% if r.is_printer %}<i class="bi bi-printer-fill text-success me-1"></i>{% else %}<i class="bi bi-hdd-network text-muted me-1"></i>{% endif %}
+            <span class="{% if r.is_printer %}fw-semibold{% endif %}">{{ r.nome|default:"—" }}</span>
+          </td>
+          <td><small class="text-muted">{{ r.descr|truncatechars:60|default:"—" }}</small></td>
+          <td><small class="text-muted">{{ r.localizacao|default:"—" }}</small></td>
+          <td class="text-end">
+            {% if r.contador is not None %}
+              <span class="badge bg-light text-dark border">{{ r.contador }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-center">
+            {% if r.impressora_existente %}
+              <span class="badge badge-online rounded-pill">
+                <i class="bi bi-check-circle-fill me-1"></i>Cadastrada
+              </span>
+            {% elif r.is_printer %}
+              <span class="badge bg-warning text-dark rounded-pill">
+                <i class="bi bi-plus-circle me-1"></i>Nova
+              </span>
+            {% else %}
+              <span class="badge bg-secondary rounded-pill">Outro</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            {% if r.impressora_existente %}
+              <a href="{% url 'impressora_detail' r.impressora_existente.pk %}"
+                 class="btn btn-sm btn-outline-secondary" title="Ver impressora">
+                <i class="bi bi-eye"></i>
+              </a>
+            {% elif r.is_printer %}
+              <a href="{{ r.url_cadastrar }}" class="btn btn-sm btn-success" title="Cadastrar">
+                <i class="bi bi-plus-lg me-1"></i>Cadastrar
+              </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('scan-form').addEventListener('submit', function () {
+  const overlay = document.getElementById('loading-overlay');
+  overlay.style.display = 'flex';
+});
+</script>
+{% endblock %}

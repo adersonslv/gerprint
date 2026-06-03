@@ -2,6 +2,7 @@
 # Copyright (C) 2025  Aderson Silva <aderson.slv@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 from django.urls import path
+
 from . import views
 
 urlpatterns = [
@@ -18,4 +19,6 @@ urlpatterns = [
     path('relatorios/', views.relatorios_view, name='relatorios'),
     path('relatorios/exportar/', views.relatorios_csv, name='relatorios_csv'),
     path('api/status/', views.api_status, name='api_status'),
+    path('impressoras/escanear/', views.escanear_rede, name='escanear_rede'),
+    path('impressoras/<int:pk>/snmp-probe/', views.snmp_probe, name='snmp_probe'),
 ]

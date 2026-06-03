@@ -15,6 +15,7 @@
     </form>
     <a href="{% url 'leitura_manual' impressora.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil-square me-1"></i>Leitura Manual</a>
     <a href="{% url 'coletar_impressora' impressora.pk %}" class="btn btn-sm btn-success"><i class="bi bi-arrow-repeat me-1"></i>Coletar SNMP</a>
+    <a href="{% url 'snmp_probe' impressora.pk %}" class="btn btn-sm btn-outline-warning"><i class="bi bi-stethoscope me-1"></i>Diagnosticar OID</a>
     <a href="{% url 'impressora_edit' impressora.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil me-1"></i>Editar</a>
   </div>
 </div>
@@ -40,17 +41,35 @@
           {% endif %}
         </td></tr>
         {% with ultima=impressora.ultima_leitura %}
-        <tr><th class="text-muted fw-normal">Nível de Toner</th><td>
-          {% if ultima and ultima.nivel_toner is not None %}
-            {% with t=ultima.nivel_toner %}
-            <div class="progress mb-1" style="height:8px; max-width:120px">
-              <div class="progress-bar {% if t > 30 %}bg-success{% elif t > 10 %}bg-warning{% else %}bg-danger{% endif %}"
-                   style="width:{{ t }}%"></div>
-            </div>
-            <span class="{% if t > 30 %}text-success{% elif t > 10 %}text-warning{% else %}text-danger{% endif %} fw-semibold small">
-              {{ t }}%
-              {% if t <= 10 %}<i class="bi bi-exclamation-triangle-fill ms-1"></i> Crítico{% elif t <= 30 %}<i class="bi bi-exclamation-circle ms-1"></i> Baixo{% endif %}
-            </span>
+        <tr><th class="text-muted fw-normal">Toner</th><td>
+          {% if ultima %}
+            {% with toners=ultima.toners.all %}
+            {% if toners %}
+              {% for t in toners %}
+              <div class="mb-1">
+                <div class="d-flex align-items-center gap-2">
+                  <small style="color:{{ t.cor_css }};width:80px;font-size:.75rem" class="fw-semibold text-truncate">{{ t.nome }}</small>
+                  <div class="progress flex-grow-1" style="height:7px">
+                    <div class="progress-bar" style="width:{{ t.nivel }}%;background-color:{{ t.cor_css }}"></div>
+                  </div>
+                  <small style="width:32px;text-align:right;color:{{ t.cor_css }}" class="fw-semibold">{{ t.nivel }}%</small>
+                </div>
+                {% if t.nivel <= 10 %}<small class="text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>Crítico</small>
+                {% elif t.nivel <= 30 %}<small class="text-warning"><i class="bi bi-exclamation-circle me-1"></i>Baixo</small>{% endif %}
+              </div>
+              {% endfor %}
+            {% elif ultima.nivel_toner is not None %}
+              {% with t=ultima.nivel_toner %}
+              <div class="progress mb-1" style="height:8px;max-width:130px">
+                <div class="progress-bar {% if t > 30 %}bg-success{% elif t > 10 %}bg-warning{% else %}bg-danger{% endif %}" style="width:{{ t }}%"></div>
+              </div>
+              <span class="fw-semibold small">{{ t }}%
+                {% if t <= 10 %}<i class="bi bi-exclamation-triangle-fill text-danger ms-1"></i>{% elif t <= 30 %}<i class="bi bi-exclamation-circle text-warning ms-1"></i>{% endif %}
+              </span>
+              {% endwith %}
+            {% else %}
+              <span class="text-muted">Sem dados</span>
+            {% endif %}
             {% endwith %}
           {% else %}
             <span class="text-muted">Sem dados</span>
@@ -71,6 +90,93 @@
       <canvas id="chartPaginas" height="100"></canvas>
     </div>
   </div>
+</div>
+
+<!-- Logs SNMP -->
+<div class="card p-3 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h6 class="fw-bold mb-0"><i class="bi bi-reception-4 me-1 text-primary"></i>Últimas Coletas SNMP</h6>
+    <a href="{% url 'coletar_impressora' impressora.pk %}" class="btn btn-sm btn-outline-success">
+      <i class="bi bi-arrow-repeat me-1"></i>Coletar agora
+    </a>
+  </div>
+  {% if logs_snmp %}
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width:145px">Data / Hora</th>
+          <th class="text-end">Contador</th>
+          <th>Toner</th>
+          <th>Status HW</th>
+          <th>Erro SNMP</th>
+          <th class="text-center" style="width:90px">Resultado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in logs_snmp %}
+        <tr>
+          <td class="text-muted small text-nowrap">{{ l.lido_em|date:"d/m/Y H:i:s" }}</td>
+          <td class="text-end fw-semibold">{{ l.valor_contador }}</td>
+          <td style="min-width:110px">
+            {% with toners=l.toners.all %}
+            {% if toners %}
+              {% for t in toners %}
+              <div class="d-flex align-items-center gap-1 mb-1">
+                <div class="progress flex-grow-1" style="height:4px">
+                  <div class="progress-bar" style="width:{{ t.nivel }}%;background-color:{{ t.cor_css }}"></div>
+                </div>
+                <small style="color:{{ t.cor_css }};min-width:26px;text-align:right;font-size:.7rem" class="fw-semibold">{{ t.nivel }}%</small>
+              </div>
+              {% endfor %}
+            {% elif l.nivel_toner is not None %}
+              <small>{{ l.nivel_toner }}%</small>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+            {% endwith %}
+          </td>
+          <td>
+            {% if l.status_hw %}
+              <span class="badge bg-warning text-dark" style="font-size:.72rem">
+                <i class="bi bi-exclamation-triangle me-1"></i>{{ l.status_hw }}
+              </span>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if l.erro %}
+              <small class="text-danger">{{ l.erro|truncatechars:50 }}</small>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if l.erro %}
+              <span class="badge badge-offline rounded-pill px-2">
+                <i class="bi bi-x-circle-fill me-1"></i>Erro
+              </span>
+            {% elif l.status_hw %}
+              <span class="badge bg-warning text-dark rounded-pill px-2">
+                <i class="bi bi-exclamation-circle-fill me-1"></i>Aviso
+              </span>
+            {% else %}
+              <span class="badge badge-online rounded-pill px-2">
+                <i class="bi bi-check-circle-fill me-1"></i>OK
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-muted text-center py-3">
+    <i class="bi bi-inbox fs-4 d-block mb-2"></i>Nenhuma coleta SNMP registrada ainda.
+  </div>
+  {% endif %}
 </div>
 
 <!-- Relatórios Mensais -->
@@ -135,9 +241,23 @@
         <tr class="{% if l.erro %}table-danger{% endif %}">
           <td>{{ l.lido_em|date:"d/m/Y H:i:s" }}</td>
           <td class="text-end">{{ l.valor_contador }}</td>
-          <td class="text-end">{% if l.nivel_toner is not None %}{{ l.nivel_toner }}%{% else %}—{% endif %}</td>
+          <td>
+            {% with toners=l.toners.all %}
+            {% if toners %}
+              {% for t in toners %}
+              <span class="badge rounded-pill" style="background-color:{{ t.cor_css }};font-size:.7rem">{{ t.nivel }}%</span>
+              {% endfor %}
+            {% elif l.nivel_toner is not None %}
+              {{ l.nivel_toner }}%
+            {% else %}—{% endif %}
+            {% endwith %}
+          </td>
           <td>{% if l.manual %}<span class="badge bg-warning text-dark">Manual</span>{% else %}<span class="badge bg-info text-dark">SNMP</span>{% endif %}</td>
-          <td><small class="text-danger">{{ l.erro }}</small></td>
+          <td>
+            {% if l.status_hw %}<small class="text-warning fw-semibold"><i class="bi bi-printer me-1"></i>{{ l.status_hw }}</small>{% endif %}
+            {% if l.status_hw and l.erro %}<br>{% endif %}
+            {% if l.erro %}<small class="text-danger"><i class="bi bi-wifi-off me-1"></i>{{ l.erro }}</small>{% endif %}
+          </td>
         </tr>
         {% empty %}
         <tr><td colspan="5" class="text-muted text-center">Sem leituras registradas.</td></tr>

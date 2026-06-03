@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+
 from impressoras.snmp_collector import coletar_todas
 
 

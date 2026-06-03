@@ -1,0 +1,17 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+exclude = [
+    "venv",
+    "*/migrations/*",
+    "manage.py",
+]
+
+[tool.ruff.lint]
+# E = pycodestyle errors, F = pyflakes, I = isort
+select = ["E", "F", "I"]
+ignore = [
+    "E501",   # line too long — controlado pelo line-length acima
+    "F401",   # imported but unused — migrações e __init__ têm imports assim
+    "F405",   # may be undefined from star imports — pysnmp usa wildcard import por convenção
+]

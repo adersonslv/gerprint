@@ -1,9 +1,11 @@
-import zipfile
 import xml.etree.ElementTree as ET
-from decimal import Decimal
+import zipfile
 from datetime import datetime
+from decimal import Decimal
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+
 from impressoras.models import Impressora, LeituraContador, RelatorioMensal
 
 NS = {
@@ -129,7 +131,6 @@ class Command(BaseCommand):
             if not imp:
                 continue
 
-            contador_inicial = parse_number(row[3])
             for mes_idx, mes_nome in enumerate(MESES):
                 col = 4 + mes_idx
                 if col >= len(row):

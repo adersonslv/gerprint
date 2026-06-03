@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+db.sqlite3
+staticfiles/
+*.log
+.git/
+.gitignore
+*.ods
+*.txt
+!requirements.txt

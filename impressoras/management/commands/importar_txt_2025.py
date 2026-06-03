@@ -1,6 +1,8 @@
+from datetime import datetime
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from datetime import datetime
+
 from impressoras.models import Impressora, LeituraContador, RelatorioMensal
 
 # Mapeamento posição no txt → IP da impressora no banco

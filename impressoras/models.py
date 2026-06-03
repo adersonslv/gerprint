@@ -2,6 +2,7 @@
 # Copyright (C) 2025  Aderson Silva <aderson.slv@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 from datetime import datetime, timedelta
+
 from django.db import models
 from django.utils import timezone
 
@@ -14,6 +15,7 @@ class Impressora(models.Model):
     ]
 
     nome = models.CharField(max_length=200)
+    entidade = models.CharField(max_length=200, blank=True)
     localizacao = models.CharField(max_length=200, blank=True)
     numero_serie = models.CharField(max_length=100, blank=True)
     ip = models.GenericIPAddressField()
@@ -36,10 +38,49 @@ class Impressora(models.Model):
         return f'{self.nome} ({self.ip})'
 
     def ultima_leitura(self):
+        if hasattr(self, '_ultima'):
+            return self._ultima
         return self.leituras.order_by('-lido_em').first()
 
     def leitura_mes(self, ano, mes):
         return self.leituras.filter(lido_em__year=ano, lido_em__month=mes).order_by('-lido_em').first()
+
+
+COR_CSS = {
+    'K': '#212529',
+    'C': '#0dcaf0',
+    'M': '#d63384',
+    'Y': '#ffc107',
+    'O': '#6c757d',
+}
+
+
+class TonerConfig(models.Model):
+    COR_CHOICES = [
+        ('K', 'Preto'),
+        ('C', 'Ciano'),
+        ('M', 'Magenta'),
+        ('Y', 'Amarelo'),
+        ('O', 'Outro'),
+    ]
+
+    impressora = models.ForeignKey(Impressora, on_delete=models.CASCADE, related_name='toners')
+    nome = models.CharField(max_length=50, default='Toner')
+    cor = models.CharField(max_length=1, choices=COR_CHOICES, default='K')
+    oid = models.CharField(max_length=200)
+    ordem = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = 'Configuração de Toner'
+        verbose_name_plural = 'Configurações de Toner'
+        ordering = ['ordem', 'cor']
+
+    def __str__(self):
+        return f'{self.impressora.nome} — {self.nome}'
+
+    @property
+    def cor_css(self):
+        return COR_CSS.get(self.cor, '#6c757d')
 
 
 class LeituraContador(models.Model):
@@ -49,6 +90,7 @@ class LeituraContador(models.Model):
     nivel_toner = models.IntegerField(null=True, blank=True)
     manual = models.BooleanField(default=False)
     erro = models.CharField(max_length=300, blank=True)
+    status_hw = models.CharField(max_length=300, blank=True)
 
     class Meta:
         verbose_name = 'Leitura de Contador'
@@ -57,6 +99,24 @@ class LeituraContador(models.Model):
 
     def __str__(self):
         return f'{self.impressora.nome} - {self.lido_em:%d/%m/%Y %H:%M} - {self.valor_contador}'
+
+
+class LeituraToner(models.Model):
+    leitura = models.ForeignKey(LeituraContador, on_delete=models.CASCADE, related_name='toners')
+    toner = models.ForeignKey(TonerConfig, on_delete=models.SET_NULL, null=True)
+    nome = models.CharField(max_length=50)
+    cor = models.CharField(max_length=1)
+    nivel = models.IntegerField()
+    ordem = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = 'Leitura de Toner'
+        verbose_name_plural = 'Leituras de Toner'
+        ordering = ['ordem', 'cor']
+
+    @property
+    def cor_css(self):
+        return COR_CSS.get(self.cor, '#6c757d')
 
 
 class RelatorioMensal(models.Model):
